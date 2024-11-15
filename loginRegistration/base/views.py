@@ -10,13 +10,13 @@ from .forms import RegisterForm, LoginForm, UpdateUserForm, UpdateProfileForm
 
 
 def home(request):
-    return render(request, 'user/home.html')
+    return render(request, 'base/home.html')
 
 
-class Register(View):
+class RegisterView(View):
     form_class = RegisterForm
     initial = {'key': 'value'}
-    template_name = 'users/register.html'
+    template_name = 'base/register.html'
 
     def dispatch(self, request, *args, **kwargs):
         # will redirect to the home page if a user tries to access the register page while logged in
@@ -60,4 +60,41 @@ class CustomLoginView(LoginView):
 
         # else browser session will be as long as the session cookie time "SESSION_COOKIE_AGE" defined in settings.py
         return super(CustomLoginView, self).form_valid(form)
+    
+
+class ResetPasswordView(SuccessMessageMixin, PasswordResetView):
+    template_name = 'base/password_reset.html'
+    email_template_name = 'base/password_reset_email.html'
+    subject_template_name = 'base/password_reset_subject'
+    success_message_name = 'users/password_reset_subject'
+    success_message = "We've emailed you instructions for setting your password, " \
+                      "if an account exists with the email you entered. You should receive them shortly." \
+                      " If you don't receive an email, " \
+                      "please make sure you've entered the address you registered with, and check your spam folder."
+    
+
+class ChangePasswordView(SuccessMessageMixin, PasswordChangeView):
+    template_name = 'users/change_password.html'
+    success_message = "Succesfully Changed Your Password"
+    success_url = reverse_lazy('users-home')
+
+
+@login_required
+def profile(request):
+    if request.method == 'POST':
+        user_form = UpdateUserForm(request.POST, instance=request.user)
+        profile_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user.profile)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, 'Your profile is updated successfull')
+            return redirect(to='users-profile')
+        else:
+            user_form = UpdateUserForm(instance=request.user)
+            profile_form = UpdateProfileForm(instance=request.user.profile)
+
+        return render(request, 'user/profile.html', {'user_form': user_form, 'profile_form': profile_form})
+    
+    
 
